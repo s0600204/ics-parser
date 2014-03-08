@@ -1,24 +1,52 @@
-This ics-parser is under MIT license. You may use it for your own sites for 
-free, but I would like to get a notice when you use it (info@martin-thoma.de).
-If you use it for another software project, please let the information / links 
-to this project in the files.
+  _____  ___  ___     ___
+ |_   _||  _|| __|   | _ \ _      _  _
+  _| |_ | |_ |__ | - |  _// \ |'\|_ /_\|'\
+ |_____||___||___|   |_|  \_,\|   _|\_ |
+   
+------------------------------------------------------------------------
+  Project History
+------------------------------------------------------------------------
+  This project was originally created by Martin Thoma in 2011, licenced
+    under an MIT Licence, and available from
+    http://code.google.com/p/ics-parser/
 
-It is hosted at http://code.google.com/p/ics-parser/ and PEAR coding standard is
-used.
+  On 7th of April 2013, he announced that he would not be continuing
+    development. http://stack-overflow.com/a/4767972
 
-################################################################################
-# Requirements                                                                 #
-################################################################################
+  In March of 2014 I, s0600204, in need of a simple ics/ical parser for
+    my own purposes came across this, and decided it would be ideal.
+    However, I needed to alter the code and so, in the atmosphere of
+    open source, I make my modifications available to all.
+
+  Please also read through the original readme, available within this
+    repo as README-ORIG
+
+------------------------------------------------------------------------
+  Requirements
+------------------------------------------------------------------------
   * PHP
 
-################################################################################
-# Installation                                                                 #
-################################################################################
-  * Copy all files to a folder where PHP can be executed
-  * Include class.iCalReader.php to your project
+------------------------------------------------------------------------
+  Installation
+------------------------------------------------------------------------
+  * Copy `class.iCalReader.php` to a location where it can be accessed
+      from your project
+  * Include `class.iCalReader.php` to your project
 
-################################################################################
-# Credits                                                                      #
-################################################################################
-Martin Thoma (programming, bug-fixing, project management)
-Frank Gregor (programming, feedback, testing)
+------------------------------------------------------------------------
+  Basic Example
+------------------------------------------------------------------------
+    <?php
+      require 'class.iCalReader.php';
+
+      $ical = new ICal('MyCal.ics');
+      print_r($ical->events());
+    ?>
+  
+  For a more extensive example, please see example.php
+
+------------------------------------------------------------------------
+  Credits
+------------------------------------------------------------------------
+  * Martin Thoma (programming, bug-fixing, project management)
+  * Frank Gregor (programming, feedback, testing)
