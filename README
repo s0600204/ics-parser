@@ -34,6 +34,33 @@
   * Include `class.iCalReader.php` to your project
 
 ------------------------------------------------------------------------
+  Migration
+------------------------------------------------------------------------
+  If you are migrating from Martin Thoma's original, then you may need
+    to alter your code where you access a value from either the
+    $ical->events() or $ical->todos() functions to take into account
+    changes to permit the saving of params from a KEY;PARAMS:VALUE
+    scenario.
+    
+    // Before:
+    foreach ($events as $event) {
+		echo $event['DTSTART'];			  // value
+										  // params lost during parsing
+	}
+    
+    // After:
+    foreach ($events as $event) {
+		echo $event['DTSTART'];			  // array
+		echo $event['DTSTART']['value'];  // value
+		echo $event['DTSTART']['params']; // params in an assoc. array
+														 or blank string
+		
+		// examples
+		echo $event['DTSTART']['params']['TZID'];
+		echo $event['ATTENDEE']['params']['ROLE'];
+	}
+
+------------------------------------------------------------------------
   Basic Example
 ------------------------------------------------------------------------
     <?php

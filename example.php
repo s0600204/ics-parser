@@ -18,7 +18,7 @@ require 'class.iCalReader.php';
 $ical   = new ICal('MyCal.ics');
 $events = $ical->events();
 
-$date = $events[0]['DTSTART'];
+$date = $events[0]['DTSTART']['value'];
 echo "The ical date: ";
 echo $date;
 echo "<br/>";
@@ -37,18 +37,18 @@ echo "<br/>";
 echo "<hr/><hr/>";
 
 foreach ($events as $event) {
-    echo "SUMMARY: ".$event['SUMMARY']."<br/>";
-    echo "DTSTART: ".$event['DTSTART']." - UNIX-Time: ".$ical->iCalDateToUnixTimestamp($event['DTSTART'])."<br/>";
-    echo "DTEND: ".$event['DTEND']."<br/>";
-    echo "DTSTAMP: ".$event['DTSTAMP']."<br/>";
-    echo "UID: ".$event['UID']."<br/>";
-    echo "CREATED: ".$event['CREATED']."<br/>";
-    echo "DESCRIPTION: ".$event['DESCRIPTION']."<br/>";
-    echo "LAST-MODIFIED: ".$event['LAST-MODIFIED']."<br/>";
-    echo "LOCATION: ".$event['LOCATION']."<br/>";
-    echo "SEQUENCE: ".$event['SEQUENCE']."<br/>";
-    echo "STATUS: ".$event['STATUS']."<br/>";
-    echo "TRANSP: ".$event['TRANSP']."<br/>";
+    echo "SUMMARY: ".$event['SUMMARY']['value']."<br/>";
+    echo "DTSTART: ".$event['DTSTART']['value']." - UNIX-Time: ".$ical->iCalDateToUnixTimestamp($event['DTSTART']['value'])."<br/>";
+    echo "DTEND: ".$event['DTEND']['value']."<br/>";
+    echo "DTSTAMP: ".$event['DTSTAMP']['value']."<br/>";
+    echo "UID: ".$event['UID']['value']."<br/>";
+    echo "CREATED: ".$event['CREATED']['value']."<br/>";
+    echo "DESCRIPTION: ".$event['DESCRIPTION']['value']."<br/>";
+    echo "LAST-MODIFIED: ".$event['LAST-MODIFIED']['value']."<br/>";
+    echo "LOCATION: ".$event['LOCATION']['value']."<br/>";
+    echo "SEQUENCE: ".$event['SEQUENCE']['value']."<br/>";
+    echo "STATUS: ".$event['STATUS']['value']."<br/>";
+    echo "TRANSP: ".$event['TRANSP']['value']."<br/>";
     echo "<hr/>";
 }
 ?>
