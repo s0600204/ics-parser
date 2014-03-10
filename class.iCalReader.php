@@ -188,23 +188,38 @@ class ICal
     /** 
      * Return Unix timestamp from ical date time format 
      * 
-     * @param {string} $icalDate A Date in the format YYYYMMDD[T]HHMMSS[Z] or
-     *                           YYYYMMDD[T]HHMMSS
+     * @param {string} $icalDate  A Date in the format YYYYMMDD[T]HHMMSS[Z] or
+     *                              YYYYMMDD[T]HHMMSS
+     * @param {array}  $icalDate  Alternate permitted entry. Array with a date
+     *                              and params
+     * @param {string} $desiredTZ Desired timezone to translate to. Either a 
+     *                              valid timezone string, 'UTC', or 'local'.
+     * @param {string} $eventTZ   Timezone of the event. Ignored if you've 
+     *                              passed an array to $icalDate with a TZID
+     *                              value
      *
-     * @return {int} 
+     * @return {int}
      */ 
-    public function iCalDateToUnixTimestamp($icalDate) 
-    { 
-        $icalDate = str_replace('T', '', $icalDate); 
-        $icalDate = str_replace('Z', '', $icalDate); 
+    public function iCalDateToUnixTimestamp($icalDate, $desiredTZ = 'local', $eventTZ = '') 
+    {
+        if (is_array($icalDate)) {
+            $eventTZ = is_array($icalDate['params']) ? $icalDate['params']['TZID'] : '';
+            $icalDate = $icalDate['value'];
+        }
+        
+        $desiredTZ = ($desiredTZ == "local") ? date_default_timezone_get() : $desiredTZ;
+        
+        // totdo: create a test to make sure desiredTZ and eventTZ are valid
+        
+        $icalDate = str_replace('T', '', $icalDate);
 
-        $pattern  = '/([0-9]{4})';   // 1: YYYY
-        $pattern .= '([0-9]{2})';    // 2: MM
-        $pattern .= '([0-9]{2})';    // 3: DD
-        $pattern .= '([0-9]{0,2})';  // 4: HH
-        $pattern .= '([0-9]{0,2})';  // 5: MM
-        $pattern .= '([0-9]{0,2})/'; // 6: SS
-        preg_match($pattern, $icalDate, $date); 
+        $pattern  = '([0-9]{4})';   // 1: YYYY
+        $pattern .= '([0-9]{2})';   // 2: MM
+        $pattern .= '([0-9]{2})';   // 3: DD
+        $pattern .= '([0-9]{0,2})'; // 4: HH
+        $pattern .= '([0-9]{0,2})'; // 5: MM
+        $pattern .= '([0-9]{0,2})'; // 6: SS
+        preg_match('/'.$pattern.'/', $icalDate, $date); 
 
         // Unix timestamp can't represent dates before 1970
         if ($date[1] <= 1970) {
@@ -218,8 +233,47 @@ class ICal
                             (int)$date[2],
                             (int)$date[3], 
                             (int)$date[1]);
-        return  $timestamp;
-    } 
+        
+        /* 
+         * There are 3 forms of DATETIME in the Spec:
+         *  Form 1 : 'Floating time' (no 'Z', no 'TZID')
+         *  Form 2 : 'UTC Absolute' ('Z' suffix, overrides 'TZID')
+         *  Form 3 : 'Local Absolute' (no 'Z', 'TZID' present)
+         * 
+         * http://tools.ietf.org/html/rfc5545#section-3.3.5
+         */
+        
+        if (substr($icalDate, -1) == "Z") {
+            /* Offset UTC to Local Time */
+            $timestamp += $this->tz_offset($desiredTZ, $timestamp);
+        } else if ($eventTZ != "") {
+            /* Offset between Event and UTC */
+            $timestamp -= $this->tz_offset($eventTZ, $timestamp);
+            if ($desiredTZ != "UTC") {
+                /* Offset between a Timezone and UTC */
+                $timestamp += $this->tz_offset($desiredTZ, $timestamp);
+            }
+        }
+        
+        return $timestamp;
+    }
+    
+    /**
+     * Returns the offset between a timezone and UTC, taking into account
+     *   Daylight Savings Time
+     * 
+     * @param {string}  $tz   Timezone identifier
+     * @param {integer} $time Unix time at approx. time of calculating offset
+     * 
+     * @return {integer}   
+     */
+    private function tz_offset ($tz, $time)
+    {
+        $tzObj = new DateTimeZone($tz);
+        $tzTransitions = $tzObj->getTransitions(0, $time);
+        $tzTransitions = array_pop($tzTransitions);
+        return $tzTransitions['offset'];
+    }
 
     /**
      * Returns an array of arrays with all events. Every event is an associative

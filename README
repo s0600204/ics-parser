@@ -34,6 +34,15 @@
   * Include `class.iCalReader.php` to your project
 
 ------------------------------------------------------------------------
+  Recommendations
+------------------------------------------------------------------------
+  * It is highly recommended to set your project's local timezone, by
+    using either:
+     - the date.timezone setting in your local php.ini, or
+     - the date_default_timezone_set("...") function
+    http://uk3.php.net/manual/en/function.date-default-timezone-set.php
+
+------------------------------------------------------------------------
   Migration
 ------------------------------------------------------------------------
   If you are migrating from Martin Thoma's original, then you may need
