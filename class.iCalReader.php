@@ -42,6 +42,26 @@ class ICal
 
     /* Which keyword has been added to cal at last? */
     private /** @type {string} */ $_lastKeyWord;
+    
+    /* Reference of keywords that permit multiple values over multiple lines */
+    private static /** @type {array} */ $_MLMV_keys = array(
+            'glob' => array( // Always permits MLMV
+                'ATTENDEE', 'COMMENT', 'RSTATUS'
+            ),
+            'some' => array( // Permits MLMV under some Sections
+                'ATTACH' => array('VEVENT', 'VTODO', 'VJOURNAL', 'VALARM'),
+                'CATEGORIES' => array('VEVENT', 'VTODO', 'VJOURNAL'),
+                'CONTACT' => array('VEVENT', 'VTODO', 'VJOURNAL'),
+                'EXDATE' => array('VEVENT', 'VTODO', 'VJOURNAL'),
+                'RELATED' => array('VEVENT', 'VTODO', 'VJOURNAL'),
+                'RESOURCES' => array('VEVENT', 'VTODO'),
+                'RDATE' => array('VEVENT', 'VTODO', 'VJOURNAL')
+            ),
+            'spec' => array( // Permits MLMV under a specific Section
+                'VFREEBUSY' => array('FREEBUSY'),
+                'VJOURNAL' => array('DESCRIPTION')
+            )
+        );
 
     /** 
      * Creates the iCal-Object
@@ -60,7 +80,7 @@ class ICal
         if (stristr($lines[0], 'BEGIN:VCALENDAR') === false) {
             return false;
         } else {
-            // TODO: Fix multiline-description problem (see http://tools.ietf.org/html/rfc2445#section-4.8.1.5)
+            // TODO: Fix multiline-description problem (see http://tools.ietf.org/html/rfc5545#section-3.8.1.5)
             foreach ($lines as $line) {
                 $line = trim($line);
                 $add  = $this->keyValueFromString($line);
@@ -125,50 +145,64 @@ class ICal
                                                         $keyword, 
                                                         $value) 
     {
-        if ($keyword == false) { 
-            $keyword = $this->last_keyword; 
-            switch ($component) {
-            case 'VEVENT':
-                $count = $this->event_count - 1;
-                break;
-            case 'VTODO':
-                $count = $this->todo_count - 1;
-                break;
-            }
-            $value = $this->cal[$component][$count][$keyword]['value'] . $value;
-            if (isset($this->cal[$component][$count][$keyword]['params'])) {
-                $params = $this->cal[$component][$count][$keyword]['params'];
-            }
+        switch ($component) {
+        case "VEVENT":
+            $count = $this->event_count - 1;
+            break;
+        case "VTODO":
+            $count = $this->todo_count - 1;
+            break;
+        default:
+            $count = -1;
         }
         
-        $keyword = explode(";", $keyword);
-        if (count($keyword) > 1) {
-            $params = array();
-            for ($k=1; $k<count($keyword); $k++) {
-                list($paraKey, $paraValue) = explode("=", $keyword[$k], 2);
-                $params[$paraKey] = $paraValue;
+        if ($keyword == false) { 
+            $keyword = $this->last_keyword;
+            $extract = $this->cal[$component][$count][$keyword];
+
+            if ($this->_MLMV_check($component, $keyword)) {
+                $valCount = count($extract) - 1;
+                $value = $extract[$valCount]['value'] . $value;
+                if (isset($extract[$valCount]['params'])) {
+                    $params = $extract[$valCount]['params'];
+                }
+            } else {
+                $value = $extract['value'] . $value;
+                if (isset($extract['params'])) {
+                    $params = $extract['params'];
+                }
             }
         } else {
-            $params = isset($params) ? $params : "";
+            $keyword = explode(";", $keyword);
+            if (count($keyword) > 1) {
+                $params = array();
+                for ($k=1; $k<count($keyword); $k++) {
+                    list($paraKey, $paraValue) = explode("=", $keyword[$k], 2);
+                    $params[$paraKey] = $paraValue;
+                }
+            } else {
+                $params = isset($params) ? $params : "";
+            }
+            $keyword = $keyword[0];
+            $this->last_keyword = $keyword;
         }
-        $keyword = $keyword[0];
         
         $value = array( "value" => $value );
-        if ($params != "" ) { $value["params"] = $params; }
-
-        switch ($component) { 
-        case "VTODO": 
-            $this->cal[$component][$this->todo_count - 1][$keyword] = $value;
-            //$this->cal[$component][$this->todo_count]['Unix'] = $unixtime;
-            break; 
-        case "VEVENT": 
-            $this->cal[$component][$this->event_count - 1][$keyword] = $value; 
-            break; 
-        default: 
+        if (isset($params) && $params != "") { $value["params"] = $params; }
+        
+        if ($count == -1) {
             $this->cal[$component][$keyword] = $value; 
-            break; 
-        } 
-        $this->last_keyword = $keyword; 
+        } else {
+            if ($this->_MLMV_check($component, $keyword)) {
+                if (isset($valCount)) {
+                    $this->cal[$component][$count][$keyword][$valCount] = $value;
+                } else {
+                    $this->cal[$component][$count][$keyword][] = $value;
+                }
+            } else {
+                $this->cal[$component][$count][$keyword] = $value;
+            }
+        }
     }
 
     /**
@@ -330,5 +364,38 @@ class ICal
 
         return $extendedEvents;
     }
+    
+    /**
+     * Checks whether or not a keyword permit multiple values over multiple lines
+     *
+     * @param {string} $section The Section the Keyword is contained within
+     * @param {string} $keyword The Keyword being looked into
+     *
+     * @return {boolean}
+     */
+    private function _MLMV_check ($section, $keyword)
+    {
+        // convert to uppercase
+        $section = strtoupper($section);
+        $keyword = strtoupper($keyword);
+        
+        // Special cases
+        if ($section == "VALARM") {
+            return ($keyword == "ATTACH");
+        } else if ($section == "VTIMEZONE") {
+            return false;
+        }
+        
+        // check through array
+        if (in_array($keyword, $this::$_MLMV_keys['glob'])
+                || isset($this::$_MLMV_keys['some'][$keyword]) && in_array($section, $this::$_MLMV_keys['some'][$keyword])
+                || isset($this::$_MLMV_keys['spec'][$section]) && in_array($keyword, $this::$_MLMV_keys['spec'][$section])
+                || substr($keyword, 0, 2) == "X-")
+        {
+            return true;
+        }
+        return false;
+    }
+    
 } 
 ?>
