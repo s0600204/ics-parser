@@ -53,7 +53,8 @@
 		echo $event['DTSTART'];			  // array
 		echo $event['DTSTART']['value'];  // value
 		echo $event['DTSTART']['params']; // params in an assoc. array
-														 or blank string
+											        if params originally
+											            present in *.ics
 		
 		// examples
 		echo $event['DTSTART']['params']['TZID'];

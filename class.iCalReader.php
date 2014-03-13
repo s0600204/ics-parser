@@ -128,14 +128,16 @@ class ICal
         if ($keyword == false) { 
             $keyword = $this->last_keyword; 
             switch ($component) {
-            case 'VEVENT': 
-                $value = $this->cal[$component][$this->event_count - 1][$keyword]['value'] . $value;
-                $params = $this->cal[$component][$this->event_count - 1][$keyword]['params'];
+            case 'VEVENT':
+                $count = $this->event_count - 1;
                 break;
-            case 'VTODO' : 
-                $value = $this->cal[$component][$this->todo_count - 1][$keyword]['value'] . $value;
-                $params = $this->cal[$component][$this->todo_count - 1][$keyword]['params'];
+            case 'VTODO':
+                $count = $this->todo_count - 1;
                 break;
+            }
+            $value = $this->cal[$component][$count][$keyword]['value'] . $value;
+            if (isset($this->cal[$component][$count][$keyword]['params'])) {
+                $params = $this->cal[$component][$count][$keyword]['params'];
             }
         }
         
@@ -151,7 +153,8 @@ class ICal
         }
         $keyword = $keyword[0];
         
-        $value = array( "value" => $value, "params" => $params );
+        $value = array( "value" => $value );
+        if ($params != "" ) { $value["params"] = $params; }
 
         switch ($component) { 
         case "VTODO": 
