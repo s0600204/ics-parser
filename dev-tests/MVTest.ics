@@ -26,7 +26,7 @@ END:VEVENT
 
 BEGIN:VEVENT
 DTSTAMP:20140308T010000Z
-UID:SLMV@MV_test_calendar
+UID:MnS-LMV@MV_test_calendar
 SUMMARY:Multiple Values over Single and Multiple Lines
 DESCRIPTION:This event contains multiple values over both single and mul
   tiple lines.
@@ -35,6 +35,22 @@ DTEND:20140308T120000
 RESOURCES:First Resource,Second Resource,Third Resource
 RESOURCES;LANGUAGE=FR:Première ressources,Second ressources,Troisième re
   ssource
+END:VEVENT
+
+BEGIN:VEVENT
+DTSTAMP:20140308T010000Z
+UID:text@MV_test_calendar
+SUMMARY:Commas in TEXT\, escaped and not escaped
+DESCRIPTION:This event contains a 'description' keyword (this)\, which d
+  oes not permit multiple values on a single line\, and a 'resources' ke
+  yword\, which does. Both keywords use the 'text' value type\, and as s
+  uch can contain an escaped comma. In the 'resources' section\, the val
+  ues are split by unescaped commas.
+DTSTART:20140308T110000
+DTEND:20140308T120000
+RESOURCES:Projector\, green, Dry-erase Pens\, multicoloured, Whiteboard,
+  VGA-cable\, 15m, 4-way extension cord, cough sweets\, peppermint flavo
+  ur
 END:VEVENT
 
 END:VCALENDAR

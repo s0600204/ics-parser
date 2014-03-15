@@ -62,6 +62,16 @@ class ICal
                 'VJOURNAL' => array('DESCRIPTION')
             )
         );
+    
+    /* Reference of keywords that permit multiple values over a single line,
+                                                    along with their data type(s) */
+    private static /** @type {array} */ $_SLMV_keys = array(
+			"EXDATE",                    /* DATE / DATE-TIME          */
+			"RDATE",                     /* DATE / DATE-TIME / PERIOD */
+			"FREEBUSY",                  /* DURATION / PERIOD         */
+			"CATEGORIES", "RESOURCES"    /* TEXT                      */
+			/* -none- */                 /* FLOAT / INTEGER / TIME    */ 
+		);
 
     /** 
      * Creates the iCal-Object
@@ -159,15 +169,26 @@ class ICal
         if ($keyword == false) { 
             $keyword = $this->last_keyword;
             $extract = $this->cal[$component][$count][$keyword];
-
+            
             if ($this->_MLMV_check($component, $keyword)) {
                 $valCount = count($extract) - 1;
-                $value = $extract[$valCount]['value'] . $value;
+                
+                if ($this->_SLMV_check($keyword)) {
+					$value = $this->_SLMV_explode($value);
+					$value[0] = array_pop($extract[$valCount]['value']) . $value[0];
+					$value = array_merge($extract[$valCount]['value'], $value);
+				} else {
+					$value = $extract[$valCount]['value'] . $value;
+				}
+				
                 if (isset($extract[$valCount]['params'])) {
                     $params = $extract[$valCount]['params'];
                 }
             } else {
                 $value = $extract['value'] . $value;
+                /* There isn't a check for SLMV here because all SLMV
+                    keywords are also MLMV keywords under all circumstances
+                    they can validly be used */
                 if (isset($extract['params'])) {
                     $params = $extract['params'];
                 }
@@ -185,6 +206,10 @@ class ICal
             }
             $keyword = $keyword[0];
             $this->last_keyword = $keyword;
+            
+            if ($this->_SLMV_check($keyword)) {
+				$value = $this->_SLMV_explode($value);
+			}
         }
         
         $value = array( "value" => $value );
@@ -396,6 +421,43 @@ class ICal
         }
         return false;
     }
+    
+    /**
+     * Checks whether or not a keyword permits multiple values over multiple lines
+     * 
+     * @param {string} $keyword The keyword being checked
+     * 
+     * @return {boolean}
+     */
+    private function _SLMV_check ($keyword)
+    {
+		return in_array($keyword, $this::$_SLMV_keys);
+	}
+    
+    /**
+     * Explodes apart values from a single string,
+     *               taking into account possibility of an escaped comma
+     * 
+     * @params {string} $values The srting containing the values separated by commas
+     * 
+     * @return {array}
+     */
+    private function _SLMV_explode ($values)
+    {
+		$exploded = explode(",", $values);
+		
+		$values = array();
+		
+		for ($v=0; $v<count($exploded); $v++) {
+			$newValue = $exploded[$v];
+			while (substr($newValue, -1) == "\\") {
+				$v++;
+				$newValue .= "," . $exploded[$v];
+			}
+			$values[] = trim($newValue);
+		}
+		return $values;	
+	}
     
 } 
 ?>
