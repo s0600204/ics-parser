@@ -27,11 +27,29 @@
   * PHP
 
 ------------------------------------------------------------------------
+  Contents
+------------------------------------------------------------------------
+  * `class.iCalReader.php` - Takes an *.ics file and parses it into its
+                             php-array equivalent.
+                             
+  * `class.iCalParser.php` - Takes it one step further and parses the
+                             php-array, converting dates/datetimes into
+                             their unix timestamp equivalents, and
+                             unravelling the rrules, exdates and other 
+                             complexities.
+
+------------------------------------------------------------------------
   Installation
 ------------------------------------------------------------------------
-  * Copy `class.iCalReader.php` to a location where it can be accessed
-      from your project
-  * Include `class.iCalReader.php` to your project
+  * Using `class.iCalReader.php`:
+     - Copy `class.iCalReader.php` to a location where it can be
+       accessed from your project
+     - Include `class.iCalReader.php` to your project
+     
+  * Using `class.iCalParser.php`:
+     - Copy `class.iCalParser.php` and `class.iCalReader.php` to a
+       location where it can be accessed from your project
+     - Include `class.iCalParser.php` to your project
 
 ------------------------------------------------------------------------
   Recommendations
@@ -74,12 +92,12 @@
   Basic Example
 ------------------------------------------------------------------------
     <?php
-      require 'class.iCalReader.php';
+      include 'class.iCalReader.php';
 
       $ical = new ICal('MyCal.ics');
       print_r($ical->events());
     ?>
-  
+    
   For a more extensive example, please see example.php
 
 ------------------------------------------------------------------------

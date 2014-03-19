@@ -44,7 +44,7 @@ class ICal
     private /** @type {string} */ $_lastKeyWord;
     
     /* Reference of keywords that permit multiple values over multiple lines */
-    private static /** @type {array} */ $_MLMV_keys = array(
+    protected static /** @type {array} */ $_MLMV_keys = array(
             'glob' => array( // Always permits MLMV
                 'ATTENDEE', 'COMMENT', 'RSTATUS'
             ),
@@ -65,13 +65,13 @@ class ICal
     
     /* Reference of keywords that permit multiple values over a single line,
                                                     along with their data type(s) */
-    private static /** @type {array} */ $_SLMV_keys = array(
-			"EXDATE",                    /* DATE / DATE-TIME          */
-			"RDATE",                     /* DATE / DATE-TIME / PERIOD */
-			"FREEBUSY",                  /* DURATION / PERIOD         */
-			"CATEGORIES", "RESOURCES"    /* TEXT                      */
-			/* -none- */                 /* FLOAT / INTEGER / TIME    */ 
-		);
+    protected static /** @type {array} */ $_SLMV_keys = array(
+            "EXDATE",                    /* DATE / DATE-TIME          */
+            "RDATE",                     /* DATE / DATE-TIME / PERIOD */
+            "FREEBUSY",                  /* DURATION / PERIOD         */
+            "CATEGORIES", "RESOURCES"    /* TEXT                      */
+            /* -none- */                 /* FLOAT / INTEGER / TIME    */ 
+        );
 
     /** 
      * Creates the iCal-Object
@@ -174,13 +174,13 @@ class ICal
                 $valCount = count($extract) - 1;
                 
                 if ($this->_SLMV_check($keyword)) {
-					$value = $this->_SLMV_explode($value);
-					$value[0] = array_pop($extract[$valCount]['value']) . $value[0];
-					$value = array_merge($extract[$valCount]['value'], $value);
-				} else {
-					$value = $extract[$valCount]['value'] . $value;
-				}
-				
+                    $value = $this->_SLMV_explode($value);
+                    $value[0] = array_pop($extract[$valCount]['value']) . $value[0];
+                    $value = array_merge($extract[$valCount]['value'], $value);
+                } else {
+                    $value = $extract[$valCount]['value'] . $value;
+                }
+                
                 if (isset($extract[$valCount]['params'])) {
                     $params = $extract[$valCount]['params'];
                 }
@@ -208,8 +208,8 @@ class ICal
             $this->last_keyword = $keyword;
             
             if ($this->_SLMV_check($keyword)) {
-				$value = $this->_SLMV_explode($value);
-			}
+                $value = $this->_SLMV_explode($value);
+            }
         }
         
         $value = array( "value" => $value );
@@ -246,114 +246,19 @@ class ICal
         $matches = array_splice($matches, 1, 2);
         return $matches;
     }
-
-    /** 
-     * Return Unix timestamp from ical date time format 
-     * 
-     * @param {string} $icalDate  A Date in the format YYYYMMDD[T]HHMMSS[Z] or
-     *                              YYYYMMDD[T]HHMMSS
-     * @param {array}  $icalDate  Alternate permitted entry. Array with a date
-     *                              and params
-     * @param {string} $desiredTZ Desired timezone to translate to. Either a 
-     *                              valid timezone string, 'UTC', or 'local'.
-     * @param {string} $eventTZ   Timezone of the event. Ignored if you've 
-     *                              passed an array to $icalDate with a TZID
-     *                              value
-     *
-     * @return {int}
-     */ 
-    public function iCalDateToUnixTimestamp($icalDate, $desiredTZ = 'local', $eventTZ = '') 
-    {
-        if (is_array($icalDate)) {
-			if (isset($icalDate['params'])
-				&& is_array($icalDate['params'])
-				&& isset($icalDate['params']['TZID']))
-			{
-				$eventTZ = $icalDate['params']['TZID'];
-			}
-            $icalDate = $icalDate['value'];
-        }
-        
-        $desiredTZ = ($desiredTZ == "local") ? date_default_timezone_get() : $desiredTZ;
-        
-        // totdo: create a test to make sure desiredTZ and eventTZ are valid
-        
-        $icalDate = str_replace('T', '', $icalDate);
-
-        $pattern  = '([0-9]{4})';   // 1: YYYY
-        $pattern .= '([0-9]{2})';   // 2: MM
-        $pattern .= '([0-9]{2})';   // 3: DD
-        $pattern .= '([0-9]{0,2})'; // 4: HH
-        $pattern .= '([0-9]{0,2})'; // 5: MM
-        $pattern .= '([0-9]{0,2})'; // 6: SS
-        preg_match('/'.$pattern.'/', $icalDate, $date); 
-
-        // Unix timestamp can't represent dates before 1970
-        if ($date[1] <= 1970) {
-            return false;
-        } 
-        // Unix timestamps after 03:14:07 UTC 2038-01-19 might cause an overflow
-        // if 32 bit integers are used.
-        $timestamp = mktime((int)$date[4], 
-                            (int)$date[5], 
-                            (int)$date[6], 
-                            (int)$date[2],
-                            (int)$date[3], 
-                            (int)$date[1]);
-        
-        /* 
-         * There are 3 forms of DATETIME in the Spec:
-         *  Form 1 : 'Floating time' (no 'Z', no 'TZID')
-         *  Form 2 : 'UTC Absolute' ('Z' suffix, overrides 'TZID')
-         *  Form 3 : 'Local Absolute' (no 'Z', 'TZID' present)
-         * 
-         * http://tools.ietf.org/html/rfc5545#section-3.3.5
-         */
-        
-        if (substr($icalDate, -1) == "Z") {
-            /* Offset UTC to Local Time */
-            $timestamp += $this->tz_offset($desiredTZ, $timestamp);
-        } else if ($eventTZ != "") {
-            /* Offset between Event and UTC */
-            $timestamp -= $this->tz_offset($eventTZ, $timestamp);
-            if ($desiredTZ != "UTC") {
-                /* Offset between a Timezone and UTC */
-                $timestamp += $this->tz_offset($desiredTZ, $timestamp);
-            }
-        }
-        
-        return $timestamp;
-    }
     
     /**
-     * Returns the offset between a timezone and UTC, taking into account
-     *   Daylight Savings Time
-     * 
-     * @param {string}  $tz   Timezone identifier
-     * @param {integer} $time Unix time at approx. time of calculating offset
-     * 
-     * @return {integer}   
-     */
-    private function tz_offset ($tz, $time)
-    {
-        $tzObj = new DateTimeZone($tz);
-        $tzTransitions = $tzObj->getTransitions(0, $time);
-        $tzTransitions = array_pop($tzTransitions);
-        return $tzTransitions['offset'];
-    }
-
-    /**
-     * Returns an array of arrays with all events. Every event is an associative
-     * array and each property is an element it.
+     * Returns a multidimensioned array of arrays with all events. Every event
+     *   is an associative array and each property is an element within it.
      *
      * @return {array}
      */
-    public function events() 
+    public function getEvents() 
     {
         $array = $this->cal;
         return $array['VEVENT'];
     }
-
+    
     /**
      * Returns true if the current calendar has events or false if it does not
      *
@@ -471,10 +376,10 @@ class ICal
         }
         
         // check through array
-        if (in_array($keyword, $this::$_MLMV_keys['glob'])
-                || isset($this::$_MLMV_keys['some'][$keyword]) && in_array($section, $this::$_MLMV_keys['some'][$keyword])
-                || isset($this::$_MLMV_keys['spec'][$section]) && in_array($keyword, $this::$_MLMV_keys['spec'][$section])
-                || substr($keyword, 0, 2) == "X-")
+        $mlmv_glob = in_array($keyword, $this::$_MLMV_keys['glob']);
+        $mlmv_some = isset($this::$_MLMV_keys['some'][$keyword]) && in_array($section, $this::$_MLMV_keys['some'][$keyword]);
+        $mlmv_spec = isset($this::$_MLMV_keys['spec'][$section]) && in_array($keyword, $this::$_MLMV_keys['spec'][$section]);
+        if ($mlmv_glob || $mlmv_some || $mlmv_spec || substr($keyword, 0, 2) == "X-")
         {
             return true;
         }
@@ -490,33 +395,33 @@ class ICal
      */
     private function _SLMV_check ($keyword)
     {
-		return in_array($keyword, $this::$_SLMV_keys);
-	}
+        return in_array($keyword, $this::$_SLMV_keys);
+    }
     
     /**
-     * Explodes apart values from a single string,
-     *               taking into account possibility of an escaped comma
+     * Explodes apart values from a single string, taking into account the
+     *   possibility of an escaped comma.
      * 
-     * @params {string} $values The srting containing the values separated by commas
+     * @params {string} $values The string containing the values separated by commas
      * 
      * @return {array}
      */
     private function _SLMV_explode ($values)
     {
-		$exploded = explode(",", $values);
-		
-		$values = array();
-		
-		for ($v=0; $v<count($exploded); $v++) {
-			$newValue = $exploded[$v];
-			while (substr($newValue, -1) == "\\") {
-				$v++;
-				$newValue .= "," . $exploded[$v];
-			}
-			$values[] = trim($newValue);
-		}
-		return $values;	
-	}
+        $exploded = explode(",", $values);
+        
+        $values = array();
+        
+        for ($v=0; $v<count($exploded); $v++) {
+            $newValue = $exploded[$v];
+            while (substr($newValue, -1) == "\\") {
+                $v++;
+                $newValue .= "," . $exploded[$v];
+            }
+            $values[] = trim($newValue);
+        }
+        return $values; 
+    }
     
 } 
 ?>
