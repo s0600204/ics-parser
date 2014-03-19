@@ -11,7 +11,7 @@
  * @license  http://www.opensource.org/licenses/mit-license.php  MIT License
  * @version  SVN: r13
  * @link     http://code.google.com/p/ics-parser/
- * @example  $ical = new ical('MyCal.ics');
+ * @example  $ical = new ICal('MyCal.ics');
  *           print_r( $ical->events() );
  */
 
@@ -26,7 +26,7 @@ error_reporting(E_ALL);
  * @license  http://www.opensource.org/licenses/mit-license.php  MIT License
  * @link     http://code.google.com/p/ics-parser/
  *
- * @param {string} filename The name of the file which should be parsed
+ * @param {string} $filename The name of the file which should be parsed
  * @constructor
  */
 class ICal
@@ -231,7 +231,7 @@ class ICal
     }
 
     /**
-     * Get a key-value pair of a string.
+     * Get a key-value pair from a string.
      *
      * @param {string} $text which is like "VCALENDAR:Begin" or "LOCATION:"
      *
@@ -296,7 +296,7 @@ class ICal
     }
 
     /**
-     * Returns a boolean value whether thr current calendar has events or not
+     * Returns true if the current calendar has events or false if it does not
      *
      * @return {boolean}
      */
@@ -355,19 +355,19 @@ class ICal
     }
 
     /**
-     * Returns a boolean value whether thr current calendar has events or not
+     * Sorts and returns an array of events
      *
      * @param {array} $events    An array with events.
      * @param {array} $sortOrder Either SORT_ASC, SORT_DESC, SORT_REGULAR, 
      *                           SORT_NUMERIC, SORT_STRING
      *
-     * @return {boolean}
+     * @return {array}
      */
     public function sortEventsWithOrder($events, $sortOrder = SORT_ASC)
     {
         $extendedEvents = array();
         
-        // loop through all events by adding two new elements
+        // loop through all events, adding two new elements
         foreach ($events as $anEvent) {
             if (!array_key_exists('UNIX_TIMESTAMP', $anEvent)) {
                 $anEvent['UNIX_TIMESTAMP'] = 
