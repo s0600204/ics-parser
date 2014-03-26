@@ -50,10 +50,25 @@ class ParsedICal extends ICal
         
         foreach ($this->cal["VEVENT"] as $event) {
             
+            /* Check for essential components                         */
+            if (!isset($event["UID"])
+                || !isset($event["DTSTAMP"])
+                || !isset($event["DTSTART"]))
+            {
+                // Throw Warning
+                // ...todo...
+                // Go to next event
+                continue;
+            }
+            
+            $dtstamp = $this->iCalDateToUnixTimestamp($event["DTSTAMP"]);
             $dtstart = $this->iCalDateToUnixTimestamp($event["DTSTART"]);
-            $dtend = $this->iCalDateToUnixTimestamp($event["DTEND"]);
+            if (isset($event["DTEND"])) {
+                $dtend = $this->iCalDateToUnixTimestamp($event["DTEND"]);
+            }
             
             /* determine recurrance */
+            /* RRULE / EXDATE / RECURID / RDATE / SEQUENCE */
             if (isset($event["RRULE"])) {
                 $rrule = array();
                 $rule = explode(";", $event["RRULE"]["value"]);
@@ -64,17 +79,46 @@ class ParsedICal extends ICal
             }
             
             do {
-                // todo: check that all critical components are present before adding them to an array
-                //       if they are not, throw a warning and skip this event
+                $evele = count($this->cal["events"]);
+                
+                /* Set required components */
                 $this->cal["events"][] = array(
                         "uid" => $event["UID"]["value"],
-                        "summary" => $event["SUMMARY"]["value"],
-                        "description" => $event["DESCRIPTION"]["value"],
-                        "dtstart" => $dtstart,
-                        "dtend" => $dtend
+                        "dtstamp" => $dtstamp,
+                        "dtstart" => $dtstart
                     );
                 
-                // todo: check for and add optional components
+                /* Set optional components */
+                /*
+                 * single value:
+                 * DONE: created / description / dtend / location / summary / url
+                 * TODO: class / duration / geo / last-mod / organizer / priority / status / transp
+                 * NOT DO: rrule / recurid / sequence (are parsed and so are not passed on)
+                 * 
+                 * multiple value:
+                 * DONE:
+                 * TODO: attach / attendee / categories / comment / contact / rstatus / related / resources / x-prop
+                 * NOT DO: exdate / rdate / iana-prop
+                 */
+                if (isset($event["CREATED"])) {
+                    $this->cal["events"][$evele]["created"] = $this->iCalDateToUnixTimestamp($event["CREATED"]);
+                }
+                if (isset($event["DESCRIPTION"])) {
+                    $description = str_replace("\\,", ",", $event["DESCRIPTION"]["value"]);
+                    $this->cal["events"][$evele]["description"] = explode("\\n", $description);
+                }
+                if (isset($event["DTEND"])) {
+                    $this->cal["events"][$evele]["dtend"] = $dtend;
+                }
+                if (isset($event["LOCATION"])) {
+                    $this->cal["events"][$evele]["location"] = $event["LOCATION"]["value"];
+                }
+                if (isset($event["SUMMARY"])) {
+                    $this->cal["events"][$evele]["summary"] = $event["SUMMARY"]["value"];
+                }
+                if (isset($event["URL"])) {
+                    $this->cal["events"][$evele]["url"] = $event["URL"]["value"];
+                }
                 
                 if (isset($rrule)) {
                     $quitLoop = false;
@@ -210,6 +254,8 @@ class ParsedICal extends ICal
                 && is_array($icalDate['params'])
                 && isset($icalDate['params']['TZID']))
             {
+                $eventTZ = $icalDate['params']['TZID'];
+            }
             $icalDate = $icalDate['value'];
         }
         
