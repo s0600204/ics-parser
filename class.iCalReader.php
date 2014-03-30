@@ -317,41 +317,44 @@ class ICal
 
         return $extendedEvents;
     }
-
+    
     /**
-     * Sorts and returns an array of events
+     * Sorts an array of events
+     * 
+     * This is a rough sort that compares date-time strings. For a more
+     * accurate sort that uses Unix times, see class.iCalParser.php
      *
-     * @param {array} $events    An array with events.
-     * @param {array} $sortOrder Either SORT_ASC, SORT_DESC, SORT_REGULAR, 
-     *                           SORT_NUMERIC, SORT_STRING
-     *
-     * @return {array}
+     * @param {array} &$events   An array with events.
+     * @param {array} $sortKey   Which date-time to sort by (DTSTART, DTEND, DTSTAMP)
+     * @param {array} $sortOrder Either SORT_ASC or SORT_DESC
      */
-    public function sortEventsWithOrder($events, $sortOrder = SORT_ASC)
-    {
-        $extendedEvents = array();
+    public function sortEvents (&$events, $sortKey = "DTSTART", $sortOrder = SORT_ASC) {
         
-        // loop through all events, adding two new elements
-        foreach ($events as $anEvent) {
-            if (!array_key_exists('UNIX_TIMESTAMP', $anEvent)) {
-                $anEvent['UNIX_TIMESTAMP'] = 
-                            $this->iCalDateToUnixTimestamp($anEvent['DTSTART']);
-            }
-
-            if (!array_key_exists('REAL_DATETIME', $anEvent)) {
-                $anEvent['REAL_DATETIME'] = 
-                            date("d.m.Y", $anEvent['UNIX_TIMESTAMP']);
-            }
-            
-            $extendedEvents[] = $anEvent;
+        if ($sortOrder !== SORT_ASC && $sortOrder !== SORT_DESC) {
+            // todo: set error
+            return;
         }
         
-        foreach ($extendedEvents as $key => $value) {
-            $timestamp[$key] = $value['UNIX_TIMESTAMP'];
+        $evDTstamp = array();
+        foreach ($events as $event) {
+            switch ($sortKey) {
+            case "DTSTAMP":
+                $dt = $event["DTSTAMP"]["value"];
+                break;
+            case "DTEND":
+                if (isset($event["DTEND"])) {
+                    $dt = $event["DTEND"]["value"];
+                    break;
+                }
+            case "DTSTART":
+            default:
+                $dt = $event["DTSTART"]["value"];
+                break;
+            }
+            $evDTstamp[$event["UID"]["value"]] = $dt;
         }
-        array_multisort($timestamp, $sortOrder, $extendedEvents);
-
-        return $extendedEvents;
+        
+        array_multisort($evDTstamp, $sortOrder, $events);
     }
     
     /**

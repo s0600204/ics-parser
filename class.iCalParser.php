@@ -298,5 +298,41 @@ class ParsedICal extends ICal
         $datetime->add(new DateInterval('P'.$offset));
         return $datetime->getTimestamp();
     }
+    
+    /**
+     * Sorts and returns an array of events
+     *
+     * @param {array} $events    An array with events.
+     * @param {array} $sortOrder Either SORT_ASC, SORT_DESC, SORT_REGULAR, 
+     *                           SORT_NUMERIC, SORT_STRING
+     *
+     * @return {array}
+     */
+    public function sortEvents ($events, $sortOrder = SORT_ASC)
+    {
+        $extendedEvents = array();
+        
+        // loop through all events, adding two new elements
+        foreach ($events as $anEvent) {
+            if (!array_key_exists('UNIX_TIMESTAMP', $anEvent)) {
+                $anEvent['UNIX_TIMESTAMP'] = 
+                            $this->iCalDateToUnixTimestamp($anEvent['DTSTART']);
+            }
+
+            if (!array_key_exists('REAL_DATETIME', $anEvent)) {
+                $anEvent['REAL_DATETIME'] = 
+                            date("d.m.Y", $anEvent['UNIX_TIMESTAMP']);
+            }
+            
+            $extendedEvents[] = $anEvent;
+        }
+        
+        foreach ($extendedEvents as $key => $value) {
+            $timestamp[$key] = $value['UNIX_TIMESTAMP'];
+        }
+        array_multisort($timestamp, $sortOrder, $extendedEvents);
+
+        return $extendedEvents;
+    }
 }
 ?>
