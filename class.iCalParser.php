@@ -91,15 +91,40 @@ class ParsedICal extends ICal
                 /* Set optional components */
                 /*
                  * single value:
-                 * DONE: created / description / dtend / location / summary / url
-                 * TODO: class / duration / geo / last-mod / organizer / priority / status / transp
+                 * DONE: class / created / description / dtend / geo / last-mod / location / priority / status / summary / transp / url
+                 * IN-PROG: duration / organizer
                  * NOT DO: rrule / recurid / sequence (are parsed and so are not passed on)
                  * 
                  * multiple value:
-                 * DONE:
-                 * TODO: attach / attendee / categories / comment / contact / rstatus / related / resources / x-prop
+                 * DONE: attach / attendee / categories / comment / contact / resources
+                 * TODO: rstatus / related / x-prop
                  * NOT DO: exdate / rdate / iana-prop
                  */
+                if (isset($event["ATTACH"])) {
+					// http://tools.ietf.org/html/rfc5545#section-3.8.1.1
+					$this->cal["events"][$evele]["attach"] = $this->extractMLMV($event["ATTACH"]);
+				}
+				if (isset($event["ATTENDEE"])) {
+					// http://tools.ietf.org/html/rfc5545#section-3.8.4.1
+					$this->cal["events"][$evele]["attendee"] = $this->extractMLMV($event["ATTENDEE"]);
+				}
+                if (isset($event["CATEGORIES"])) {
+					$this->cal["events"][$evele]["categories"] = $this->extractMV($event["CATEGORIES"]);
+				}
+				if (isset($event["COMMENT"])) {
+					// http://tools.ietf.org/html/rfc5545
+					$this->cal["events"][$evele]["comment"] = $this->extractMLMV($event["COMMENT"]);
+				}
+                if (isset($event["CLASS"])) {
+					$tmp = strtoupper($event["CLASS"]["value"]);
+					if (in_array($tmp, array("PUBLIC", "PRIVATE", "CONFIDENTIAL")) || substr($tmp, 0, 2) == "X-") {
+						$this->cal["events"][$evele]["class"] = $tmp;
+					}
+				}
+				if (isset($event["CONTACT"])) {
+					// http://tools.ietf.org/html/rfc5545#section-3.8.4.2
+					$this->cal["events"][$evele]["contact"] = $this->extractMLMV($event["CONTACT"]);
+				}
                 if (isset($event["CREATED"])) {
                     $this->cal["events"][$evele]["created"] = $this->iCalDateToUnixTimestamp($event["CREATED"]);
                 }
@@ -110,11 +135,46 @@ class ParsedICal extends ICal
                 if (isset($event["DTEND"])) {
                     $this->cal["events"][$evele]["dtend"] = $dtend;
                 }
+                if (isset($event["DURATION"])) {
+					// http://tools.ietf.org/html/rfc5545
+				}
+                if (isset($event["GEO"])) {
+					$tmp = explode(";", $event["GEO"]["value"]);
+					$this->cal["events"][$evele]["geo"] = array(
+							"lat" => floatval($tmp[0]),
+							"lon" => floatval($tmp[1])
+						);
+				}
+                if (isset($event["LAST-MODIFIED"])) {
+                    $this->cal["events"][$evele]["last-modified"] = $this->iCalDateToUnixTimestamp($event["LAST-MODIFIED"]);
+                }
                 if (isset($event["LOCATION"])) {
                     $this->cal["events"][$evele]["location"] = $event["LOCATION"]["value"];
                 }
+                if (isset($event["ORGANIZER"])) {
+					// http://tools.ietf.org/html/rfc5545#section-3.8.4.3
+				}
+				if (isset($event["PRIORITY"])) {
+                    $this->cal["events"][$evele]["priority"] = intval($event["PRIORITY"]["value"]);
+                }
+                if (isset($event["RESOURCES"])) {
+					$this->cal["events"][$evele]["resources"] = $this->extractMV($event["RESOURCES"]);
+				}
+                if (isset($event["STATUS"])) {
+					// currently checks only for VEVENT valid values
+					$tmp = strtoupper($event["STATUS"]["value"]);
+					if (in_array($tmp, array("TENTATIVE", "CONFIRMED", "CANCELLED"))) {
+						$this->cal["events"][$evele]["status"] = $tmp;
+					}
+                }
                 if (isset($event["SUMMARY"])) {
                     $this->cal["events"][$evele]["summary"] = $event["SUMMARY"]["value"];
+                }
+                if (isset($event["TRANS"])) {
+					$tmp = strtoupper($event["TRANS"]["value"]);
+					if (in_array($tmp, array("OPAQUE", "TRANSPARENT"))) {
+						$this->cal["events"][$evele]["trans"] = $tmp;
+					}
                 }
                 if (isset($event["URL"])) {
                     $this->cal["events"][$evele]["url"] = $event["URL"]["value"];
@@ -191,6 +251,7 @@ class ParsedICal extends ICal
             return $return;
         }
     }
+    
     /**
      * Calculates offset between an event and the next one implied by the rrule
      * 
@@ -344,5 +405,42 @@ class ParsedICal extends ICal
         $datetime->add(new DateInterval('P'.$offset));
         return $datetime->getTimestamp();
     }
+    
+    /**
+     * Returns an array of all the values from an originally MLMV record
+     * 
+     * @param {array} $mvRecord MultiValue record
+     * 
+     * @return {array}
+     */
+    private function extractMLMV ($mvRecord) {
+		if (!isset($mvRecord[0]["value"]) || !is_string($mvRecord[0]["value"])) {
+			return array();
+		}
+		$tmp = array();
+		for ($c=0; $c<count($mvRecord); $c++) {
+			$tmp[] = $mvRecord[$c]["value"];
+		}
+		return $tmp;
+	}
+	
+	/**
+     * Returns an array of all the values from an originally MLMV and SLMV record
+     * 
+     * @param {array} $mvRecord MultiValue record
+     * 
+     * @return {array}
+     */
+	private function extractMV ($mvRecord) {
+		if (!isset($mvRecord[0]["value"]) || !is_array($mvRecord[0]["value"])) {
+			return array();
+		}
+		$tmp = array();
+		for ($c=0; $c<count($mvRecord); $c++) {
+			$tmp = array_merge($tmp, $mvRecord[$c]["value"]);
+		}
+		return $tmp;
+	}
+    
 }
 ?>
