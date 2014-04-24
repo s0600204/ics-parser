@@ -91,17 +91,15 @@ class ParsedICal extends ICal
                     }
                     
                     /* effects */
-                    $offset = $this->rrule_offset($rrule);
-                    $dtstart = $this->timestamp_add($dtstart, $offset);
-                    $dtend = $this->timestamp_add($dtend, $offset);
+                    $offset = $this->_rruleOffset($rrule);
+                    $dtstart = $this->_timestampAdd($dtstart, $offset);
+                    $dtend = $this->_timestampAdd($dtend, $offset);
                 } else {
                     $quitLoop = true;
                 }
                 
             } while (!$quitLoop);
         }
-        
-    
     }
     
     /**
@@ -153,7 +151,7 @@ class ParsedICal extends ICal
      * 
      * @ return {string} The change to be undertaken on a timestamp
      */
-    private function rrule_offset ($rrule)
+    private function _rruleOffset ($rrule)
     {
         $offset = "";
         
@@ -220,7 +218,7 @@ class ParsedICal extends ICal
         
         // totdo: create a test to make sure desiredTZ and eventTZ are valid
         
-        preg_match($this::$_iso8601pattern, $icalDate, $date); 
+        preg_match($this::$iso8601pattern, $icalDate, $date); 
 
         // Unix timestamp can't represent dates before 1970
         if ($date[1] <= 1970) {
@@ -246,13 +244,13 @@ class ParsedICal extends ICal
         
         if (substr($icalDate, -1) == "Z") {
             /* Offset UTC to Local Time */
-            $timestamp += $this->tz_offset($desiredTZ, $timestamp);
+            $timestamp += $this->_tzOffset($desiredTZ, $timestamp);
         } else if ($eventTZ != "") {
             /* Offset between Event and UTC */
-            $timestamp -= $this->tz_offset($eventTZ, $timestamp);
+            $timestamp -= $this->_tzOffset($eventTZ, $timestamp);
             if ($desiredTZ != "UTC") {
                 /* Offset between a Timezone and UTC */
-                $timestamp += $this->tz_offset($desiredTZ, $timestamp);
+                $timestamp += $this->_tzOffset($desiredTZ, $timestamp);
             }
         }
         
@@ -268,7 +266,7 @@ class ParsedICal extends ICal
      * 
      * @return {integer}   
      */
-    private function tz_offset ($tz, $time)
+    private function _tzOffset ($tz, $time)
     {
         $tzObj = new DateTimeZone($tz);
         $tzTransitions = $tzObj->getTransitions(0, $time);
@@ -286,7 +284,7 @@ class ParsedICal extends ICal
      * 
      * @return {integer}
      */
-    private function timestamp_add ($timestamp, $offset)
+    private function _timestampAdd ($timestamp, $offset)
     {
         $datetime = new DateTime();
         $datetime->setTimestamp($timestamp);

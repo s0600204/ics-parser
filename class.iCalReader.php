@@ -44,7 +44,7 @@ class ICal
     private /** @type {string} */ $_lastKeyWord;
     
     /* Reference of keywords that permit multiple values over multiple lines */
-    protected static /** @type {array} */ $_MLMV_keys = array(
+    protected static /** @type {array} */ $mlmvKeys = array(
             'glob' => array( // Always permits MLMV
                 'ATTENDEE', 'COMMENT', 'RSTATUS'
             ),
@@ -55,26 +55,26 @@ class ICal
                 'EXDATE' => array('VEVENT', 'VTODO', 'VJOURNAL'),
                 'RELATED' => array('VEVENT', 'VTODO', 'VJOURNAL'),
                 'RESOURCES' => array('VEVENT', 'VTODO'),
-                'RDATE' => array('VEVENT', 'VTODO', 'VJOURNAL')
+                'RDATE' => array('VEVENT', 'VTODO', 'VJOURNAL'),
             ),
             'spec' => array( // Permits MLMV under a specific Section
                 'VFREEBUSY' => array('FREEBUSY'),
-                'VJOURNAL' => array('DESCRIPTION')
+                'VJOURNAL' => array('DESCRIPTION'),
             )
         );
     
     /* Reference of keywords that permit multiple values over a single line,
                                                     along with their data type(s) */
-    protected static /** @type {array} */ $_SLMV_keys = array(
+    protected static /** @type {array} */ $slmvKeys = array(
             "EXDATE",                    /* DATE / DATE-TIME          */
             "RDATE",                     /* DATE / DATE-TIME / PERIOD */
             "FREEBUSY",                  /* DURATION / PERIOD         */
-            "CATEGORIES", "RESOURCES"    /* TEXT                      */
+            "CATEGORIES", "RESOURCES",   /* TEXT                      */
             /* -none- */                 /* FLOAT / INTEGER / TIME    */ 
         );
     
     /* ISO.8601.2004 pattern used to express dates */
-    protected static /** @type {regex string} */ $_iso8601pattern =
+    protected static /** @type {regex string} */ $iso8601pattern =
        /*  --YYYY--  ---MM---  ---DD---            ----HH----  ----MM----  ----SS----  */
         '/([0-9]{4})([0-9]{2})([0-9]{2})([T]{0,1})([0-9]{0,2})([0-9]{0,2})([0-9]{0,2})/';
 
@@ -175,11 +175,11 @@ class ICal
             $keyword = $this->last_keyword;
             $extract = $this->cal[$component][$count][$keyword];
             
-            if ($this->_MLMV_check($component, $keyword)) {
+            if ($this->_mlmvCheck($component, $keyword)) {
                 $valCount = count($extract) - 1;
                 
-                if ($this->_SLMV_check($keyword)) {
-                    $value = $this->_SLMV_explode($value);
+                if ($this->_slmvCheck($keyword)) {
+                    $value = $this->_slmvExplode($value);
                     $value[0] = array_pop($extract[$valCount]['value']) . $value[0];
                     $value = array_merge($extract[$valCount]['value'], $value);
                 } else {
@@ -212,8 +212,8 @@ class ICal
             $keyword = $keyword[0];
             $this->last_keyword = $keyword;
             
-            if ($this->_SLMV_check($keyword)) {
-                $value = $this->_SLMV_explode($value);
+            if ($this->_slmvCheck($keyword)) {
+                $value = $this->_slmvExplode($value);
             }
         }
         
@@ -223,7 +223,7 @@ class ICal
         if ($count == -1) {
             $this->cal[$component][$keyword] = $value; 
         } else {
-            if ($this->_MLMV_check($component, $keyword)) {
+            if ($this->_mlmvCheck($component, $keyword)) {
                 if (isset($valCount)) {
                     $this->cal[$component][$count][$keyword][$valCount] = $value;
                 } else {
@@ -271,7 +271,10 @@ class ICal
      * 
      * Valid dates/date-times follow the ISO.8601.2004 format as described in
      *   http://tools.ietf.org/html/rfc5545#section-3.3.5
-     *
+     * 
+     * @param {boolean|string} $start false if no range-start set, or a valid start time/date
+     * @param {boolean|string} $end   false if no range-end set, or a valid end time/date
+     * 
      * @return {array}
      */
     public function getEvents($start = false, $end = false) 
@@ -281,11 +284,11 @@ class ICal
         } else {
             
             if ($start != false) {
-                preg_match($this::$_iso8601pattern, $start, $start);
+                preg_match($this::$iso8601pattern, $start, $start);
                 $start = (count($start) > 0) ? $start[0] : false;
             }
             if ($end != false) {
-                preg_match($this::$_iso8601pattern, $end, $end);
+                preg_match($this::$iso8601pattern, $end, $end);
                 echo print_r($end, true) . "<br>";
                 $end = (count($end) > 0) ? $end[0] : false;
             }
@@ -311,7 +314,7 @@ class ICal
     {
         return ( count($this->events()) > 0 ? true : false );
     }
-	
+    
     /**
      * Sorts an array of events
      * 
@@ -359,7 +362,7 @@ class ICal
      *
      * @return {boolean}
      */
-    private function _MLMV_check ($section, $keyword)
+    private function _mlmvCheck ($section, $keyword)
     {
         // convert to uppercase
         $section = strtoupper($section);
@@ -373,9 +376,9 @@ class ICal
         }
         
         // check through array
-        $mlmv_glob = in_array($keyword, $this::$_MLMV_keys['glob']);
-        $mlmv_some = isset($this::$_MLMV_keys['some'][$keyword]) && in_array($section, $this::$_MLMV_keys['some'][$keyword]);
-        $mlmv_spec = isset($this::$_MLMV_keys['spec'][$section]) && in_array($keyword, $this::$_MLMV_keys['spec'][$section]);
+        $mlmv_glob = in_array($keyword, $this::$mlmvKeys['glob']);
+        $mlmv_some = isset($this::$mlmvKeys['some'][$keyword]) && in_array($section, $this::$mlmvKeys['some'][$keyword]);
+        $mlmv_spec = isset($this::$mlmvKeys['spec'][$section]) && in_array($keyword, $this::$mlmvKeys['spec'][$section]);
         if ($mlmv_glob || $mlmv_some || $mlmv_spec || substr($keyword, 0, 2) == "X-")
         {
             return true;
@@ -390,9 +393,9 @@ class ICal
      * 
      * @return {boolean}
      */
-    private function _SLMV_check ($keyword)
+    private function _slmvCheck ($keyword)
     {
-        return in_array($keyword, $this::$_SLMV_keys);
+        return in_array($keyword, $this::$slmvKeys);
     }
     
     /**
@@ -403,7 +406,7 @@ class ICal
      * 
      * @return {array}
      */
-    private function _SLMV_explode ($values)
+    private function _slmvExplode ($values)
     {
         $exploded = explode(",", $values);
         
