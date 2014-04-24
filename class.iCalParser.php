@@ -139,14 +139,15 @@ class ParsedICal extends ICal
             $return = array();
             
             foreach ($this->cal['events'] as $event) {
-                if (($start != false && $event["dtstart"] >= $start)
-                        && ($end != false && $event["dtend"] <= $end)) {
+                if (($start == false || $event["dtstart"] >= $start)
+                        && ($end == false || $event["dtend"] <= $end)) {
                     $return[] = $event;
                 }
             }
             return $return;
         }
     }
+    
     /**
      * Calculates offset between an event and the next one implied by the rrule
      * 
@@ -219,15 +220,7 @@ class ParsedICal extends ICal
         
         // totdo: create a test to make sure desiredTZ and eventTZ are valid
         
-        $icalDate = str_replace('T', '', $icalDate);
-
-        $pattern  = '([0-9]{4})';   // 1: YYYY
-        $pattern .= '([0-9]{2})';   // 2: MM
-        $pattern .= '([0-9]{2})';   // 3: DD
-        $pattern .= '([0-9]{0,2})'; // 4: HH
-        $pattern .= '([0-9]{0,2})'; // 5: MM
-        $pattern .= '([0-9]{0,2})'; // 6: SS
-        preg_match('/'.$pattern.'/', $icalDate, $date); 
+        preg_match($this::$_iso8601pattern, $icalDate, $date); 
 
         // Unix timestamp can't represent dates before 1970
         if ($date[1] <= 1970) {
@@ -235,9 +228,9 @@ class ParsedICal extends ICal
         } 
         // Unix timestamps after 03:14:07 UTC 2038-01-19 might cause an overflow
         // if 32 bit integers are used.
-        $timestamp = mktime((int)$date[4], 
-                            (int)$date[5], 
+        $timestamp = mktime((int)$date[5], 
                             (int)$date[6], 
+                            (int)$date[7], 
                             (int)$date[2],
                             (int)$date[3], 
                             (int)$date[1]);
@@ -304,9 +297,11 @@ class ParsedICal extends ICal
     /**
      * Sorts an array of events
      * 
+     * Overrides parent function
+     * 
      * This is a more accurate sort than that of its parent as it compares
-     * Unix-times. However, it does have a problem with events that fall
-     * after a particular date in 2038, that its parent does not.
+     * Unix-times. However, it does have a potential problem with events that
+     * fall after a particular date in 2038 that its parent does not.
      *
      * @param {array} &$events   An array with events.
      * @param {array} $sortKey   Which date-time to sort by (DTSTART, DTEND, DTSTAMP)
