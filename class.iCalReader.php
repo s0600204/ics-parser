@@ -72,6 +72,11 @@ class ICal
             "CATEGORIES", "RESOURCES"    /* TEXT                      */
             /* -none- */                 /* FLOAT / INTEGER / TIME    */ 
         );
+    
+    /* ISO.8601.2004 pattern used to express dates */
+    protected static /** @type {regex string} */ $_iso8601pattern =
+       /*  --YYYY--  ---MM---  ---DD---            ----HH----  ----MM----  ----SS----  */
+        '/([0-9]{4})([0-9]{2})([0-9]{2})([T]{0,1})([0-9]{0,2})([0-9]{0,2})([0-9]{0,2})/';
 
     /** 
      * Creates the iCal-Object
@@ -248,15 +253,53 @@ class ICal
     }
     
     /**
-     * Returns a multidimensioned array of arrays with all events. Every event
-     *   is an associative array and each property is an element within it.
+     * Returns a multidimensioned array of arrays with either all events, or events
+     *   from within a given range. Every event is an associative array and each
+     *   property is an element within it.
+     * 
+     * If both $start and $end are false, all events are returned.
+     * 
+     * If $start is a valid date/date-time but $end is equivalent to false, then the
+     *   function will return all events that start after the time passed via $start
+     * 
+     * If $start is equivalent to false but $end is a valid date/date-time, then the
+     *   function will return all events that end before the time passed via $end
+     *
+     * If both $start and $end are valid dates/date-times, then the function will return
+     *   all events that start after the time passed via $start and end before the
+     *   time passed via $end
+     * 
+     * Valid dates/date-times follow the ISO.8601.2004 format as described in
+     *   http://tools.ietf.org/html/rfc5545#section-3.3.5
      *
      * @return {array}
      */
-    public function getEvents() 
+    public function getEvents($start = false, $end = false) 
     {
-        $array = $this->cal;
-        return $array['VEVENT'];
+        if ($start === false && $end === false) {
+            return $this->cal['VEVENT'];
+        } else {
+            
+            if ($start != false) {
+                preg_match($this::$_iso8601pattern, $start, $start);
+                $start = (count($start) > 0) ? $start[0] : false;
+            }
+            if ($end != false) {
+                preg_match($this::$_iso8601pattern, $end, $end);
+                echo print_r($end, true) . "<br>";
+                $end = (count($end) > 0) ? $end[0] : false;
+            }
+            
+            $return = array();
+            
+            foreach ($this->cal['VEVENT'] as $event) {
+                if (($start == false || $event["DTSTART"]['value'] >= $start)
+                        && ($end == false || $event["DTEND"]['value'] <= $end)) {
+                    $return[] = $event;
+                }
+            }
+            return $return;
+        }
     }
     
     /**
@@ -268,56 +311,7 @@ class ICal
     {
         return ( count($this->events()) > 0 ? true : false );
     }
-
-    /**
-     * Returns false when the current calendar has no events in range, else the
-     * events.
-     * 
-     * Note that this function makes use of a UNIX timestamp. This might be a 
-     * problem on January the 29th, 2038.
-     * See http://en.wikipedia.org/wiki/Unix_time#Representing_the_number
-     *
-     * @param {boolean} $rangeStart Either true or false
-     * @param {boolean} $rangeEnd   Either true or false
-     *
-     * @return {mixed}
-     */
-    public function eventsFromRange($rangeStart = false, $rangeEnd = false) 
-    {
-        $events = $this->sortEventsWithOrder($this->events(), SORT_ASC);
-
-        if (!$events) {
-            return false;
-        }
-
-        $extendedEvents = array();
-        
-        if ($rangeStart !== false) {
-            $rangeStart = new DateTime();
-        }
-
-        if ($rangeEnd !== false or $rangeEnd <= 0) {
-            $rangeEnd = new DateTime('2038/01/18');
-        } else {
-            $rangeEnd = new DateTime($rangeEnd);
-        }
-
-        $rangeStart = $rangeStart->format('U');
-        $rangeEnd   = $rangeEnd->format('U');
-
-        
-
-        // loop through all events by adding two new elements
-        foreach ($events as $anEvent) {
-            $timestamp = $this->iCalDateToUnixTimestamp($anEvent['DTSTART']);
-            if ($timestamp >= $rangeStart && $timestamp <= $rangeEnd) {
-                $extendedEvents[] = $anEvent;
-            }
-        }
-
-        return $extendedEvents;
-    }
-    
+	
     /**
      * Sorts an array of events
      * 
@@ -328,8 +322,8 @@ class ICal
      * @param {array} $sortKey   Which date-time to sort by (DTSTART, DTEND, DTSTAMP)
      * @param {array} $sortOrder Either SORT_ASC or SORT_DESC
      */
-    public function sortEvents (&$events, $sortKey = "DTSTART", $sortOrder = SORT_ASC) {
-        
+    public function sortEvents (&$events, $sortKey = "DTSTART", $sortOrder = SORT_ASC)
+    {
         if ($sortOrder !== SORT_ASC && $sortOrder !== SORT_DESC) {
             // todo: set error
             return;
