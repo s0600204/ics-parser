@@ -69,7 +69,7 @@ class ParsedICal extends ICal
 				// we translate the duration into an explicit end datetime,
 				//   this makes calculating repeats easier later (hopefully)
 				$dtend = $this->timestamp_add($dtstart, substr($event['DURATION']['value'],1));
-			}
+            }
             
             /* determine recurrance */
             /* RRULE / EXDATE / RECURID / RDATE / SEQUENCE */
@@ -82,127 +82,130 @@ class ParsedICal extends ICal
                 }
             }
             
-            do {
-                $evele = count($this->cal["events"]);
+            /* Create a new event instance and set required components */
+            $eventInstance = array(
+                    "uid" => $event["UID"]["value"],
+                    "dtstamp" => $dtstamp,
+                    "dtstart" => $dtstart
+                );
+            
+            /* Set optional components 
+             * 
+             * single value:
+             * DONE: class / created / description / dtend / duration / geo / last-mod / location / organizer / priority / status / summary / transp / url
+             * NOT DO: rrule / recurid / sequence (are parsed and so are not passed on)
+             * 
+             * multiple value:
+             * DONE: attach / attendee / categories / comment / contact / resources
+             * TODO: rstatus / related / x-prop
+             * NOT DO: exdate / rdate / iana-prop
+             */
+            foreach ($event as $component => $record) {
+                switch ($component) {
                 
-                /* Set required components */
-                $this->cal["events"][] = array(
-                        "uid" => $event["UID"]["value"],
-                        "dtstamp" => $dtstamp,
-                        "dtstart" => $dtstart
-                    );
-                
-                /* Set optional components */
-                /*
-                 * single value:
-                 * DONE: class / created / description / dtend / duration / geo / last-mod / location / organizer / priority / status / summary / transp / url
-                 * NOT DO: rrule / recurid / sequence (are parsed and so are not passed on)
-                 * 
-                 * multiple value:
-                 * DONE: attach / attendee / categories / comment / contact / resources
-                 * TODO: rstatus / related / x-prop
-                 * NOT DO: exdate / rdate / iana-prop
-                 */
-                foreach ($event as $component => $record) {
-                    switch ($component) {
-                    
-                    case "ATTACH": // #section-3.8.1.1
-                    case "COMMENT": // #section-3.8.1.4
-                    case "CONTACT": // #section-3.8.4.2
-                        $tmp = array();
-                        for ($c=0; $c<count($record); $c++) {
-                            $tmp[] = $record[$c]["value"];
-                        }
-                        $this->cal["events"][$evele][strtolower($component)] = $tmp;
-                        break;
-
-                    case "ATTENDEE": // #section-3.8.4.1
-                        $tmp = array();
-                        for ($c=0; $c<count($record); $c++) {
-                            $tmp[] = array_merge(
-                                    array("mailto" => substr($record[$c]["value"], 7)),
-                                    $record[$c]["params"]
-                                );
-                        }
-                        $this->cal["events"][$evele]["attendee"] = $tmp;
-                        break;
-                
-                    case "CATEGORIES": // #section-3.8.1.2
-                    case "RESOURCES": // #section-3.8.1.10
-                        $tmp = array();
-                        for ($c=0; $c<count($record); $c++) {
-                            $tmp = array_merge($tmp, $record[$c]["value"]);
-                        }
-                        $this->cal["events"][$evele][strtolower($component)] = $tmp;
-                        break;
-                    
-                    case "CLASS": // #section-3.8.1.3
-                        $tmp = strtoupper($record["value"]);
-                        if (in_array($tmp, array("PUBLIC", "PRIVATE", "CONFIDENTIAL")) || substr($tmp, 0, 2) == "X-") {
-                            $this->cal["events"][$evele]["class"] = $tmp;
-                        }
-                        break;
-                    
-                    case "CREATED": // #section-3.8.7.1
-                    case "LAST-MODIFIED": // #section-3.8.7.3
-                        $this->cal["events"][$evele][strtolower($component)] = $this->iCalDateToUnixTimestamp($record);
-                        break;
-                    
-                    case "DESCRIPTION": // #section-3.8.1.5
-                        $description = str_replace("\\,", ",", $record["value"]);
-                        $this->cal["events"][$evele]["description"] = explode("\\n", $description);
-                        break;
-                    
-                    case "DURATION": // #section-3.8.2.5
-                        $this->cal["events"][$evele]["duration"] = $record['value'];
-                    case "DTEND": // #section-3.8.2.2
-                        $this->cal["events"][$evele]["dtend"] = $dtend;
-                        break;
-                    
-                    case "GEO": // #section-3.8.1.6
-                        $tmp = explode(";", $record["value"]);
-                        $this->cal["events"][$evele]["geo"] = array(
-                                "lat" => floatval($tmp[0]),
-                                "lon" => floatval($tmp[1])
-                            );
-                        break;
-                    
-                    case "LOCATION": // #section-3.8.1.7
-                    case "SUMMARY": // #section-3.8.1.12
-                    case "URL": // #section-3.8.4.6
-                        $this->cal["events"][$evele][strtolower($component)] = $record["value"];
-                        break;
-                    
-                    case "ORGANIZER": // #section-3.8.4.3
-                        $tmp = array("mailto" => substr($record["value"], 7));
-                        if (isset($event["ORGANIZER"]["params"])) {
-                            $tmp = array_merge($tmp, $record["params"]);
-                        }
-                        $this->cal["events"][$evele]["organizer"] = $tmp;
-                        break;
-                    
-                    case "PRIORITY": // #section-3.8.1.9
-                        $this->cal["events"][$evele]["priority"] = intval($record["value"]);
-                        break;
-                    
-                    case "STATUS": // #section-3.8.1.11
-                        // currently checks only for VEVENT valid values
-                        $tmp = strtoupper($record["value"]);
-                        if (in_array($tmp, array("TENTATIVE", "CONFIRMED", "CANCELLED"))) {
-                            $this->cal["events"][$evele]["status"] = $tmp;
-                        }
-                        break;
-                    
-                    case "TRANS": // #section-3.8.2.7
-                        $tmp = strtoupper($record["value"]);
-                        if (in_array($tmp, array("OPAQUE", "TRANSPARENT"))) {
-                            $this->cal["events"][$evele]["trans"] = $tmp;
-                        }
-                        break;
-                     
+                case "ATTACH": // #section-3.8.1.1
+                case "COMMENT": // #section-3.8.1.4
+                case "CONTACT": // #section-3.8.4.2
+                    $tmp = array();
+                    for ($c=0; $c<count($record); $c++) {
+                        $tmp[] = $record[$c]["value"];
                     }
-                }
+                    $eventInstance[strtolower($component)] = $tmp;
+                    break;
+
+                case "ATTENDEE": // #section-3.8.4.1
+                    $tmp = array();
+                    for ($c=0; $c<count($record); $c++) {
+                        $tmp[] = array_merge(
+                                array("mailto" => substr($record[$c]["value"], 7)),
+                                $record[$c]["params"]
+                            );
+                    }
+                    $eventInstance["attendee"] = $tmp;
+                    break;
+            
+                case "CATEGORIES": // #section-3.8.1.2
+                case "RESOURCES": // #section-3.8.1.10
+                    $tmp = array();
+                    for ($c=0; $c<count($record); $c++) {
+                        $tmp = array_merge($tmp, $record[$c]["value"]);
+                    }
+                    $eventInstance[strtolower($component)] = $tmp;
+                    break;
                 
+                case "CLASS": // #section-3.8.1.3
+                    $tmp = strtoupper($record["value"]);
+                    if (in_array($tmp, array("PUBLIC", "PRIVATE", "CONFIDENTIAL")) || substr($tmp, 0, 2) == "X-") {
+                        $eventInstance["class"] = $tmp;
+                    }
+                    break;
+                
+                case "CREATED": // #section-3.8.7.1
+                case "LAST-MODIFIED": // #section-3.8.7.3
+                    $eventInstance[strtolower($component)] = $this->iCalDateToUnixTimestamp($record);
+                    break;
+                
+                case "DESCRIPTION": // #section-3.8.1.5
+                    $description = str_replace("\\,", ",", $record["value"]);
+                    $eventInstance["description"] = explode("\\n", $description);
+                    break;
+                
+                case "DURATION": // #section-3.8.2.5
+                    $eventInstance["duration"] = $record['value'];
+                case "DTEND": // #section-3.8.2.2
+                    $eventInstance["dtend"] = $dtend;
+                    break;
+                
+                case "GEO": // #section-3.8.1.6
+                    $tmp = explode(";", $record["value"]);
+                    $eventInstance["geo"] = array(
+                            "lat" => floatval($tmp[0]),
+                            "lon" => floatval($tmp[1])
+                        );
+                    break;
+                
+                case "LOCATION": // #section-3.8.1.7
+                case "SUMMARY": // #section-3.8.1.12
+                case "URL": // #section-3.8.4.6
+                    $eventInstance[strtolower($component)] = $record["value"];
+                    break;
+                
+                case "ORGANIZER": // #section-3.8.4.3
+                    $tmp = array("mailto" => substr($record["value"], 7));
+                    if (isset($event["ORGANIZER"]["params"])) {
+                        $tmp = array_merge($tmp, $record["params"]);
+                    }
+                    $eventInstance["organizer"] = $tmp;
+                    break;
+                
+                case "PRIORITY": // #section-3.8.1.9
+                    $eventInstance["priority"] = intval($record["value"]);
+                    break;
+                
+                case "STATUS": // #section-3.8.1.11
+                    // currently checks only for VEVENT valid values
+                    $tmp = strtoupper($record["value"]);
+                    if (in_array($tmp, array("TENTATIVE", "CONFIRMED", "CANCELLED"))) {
+                        $eventInstance["status"] = $tmp;
+                    }
+                    break;
+                
+                case "TRANS": // #section-3.8.2.7
+                    $tmp = strtoupper($record["value"]);
+                    if (in_array($tmp, array("OPAQUE", "TRANSPARENT"))) {
+                        $eventInstance["trans"] = $tmp;
+                    }
+                    break;
+                 
+                }
+            }
+            
+            
+            do {
+                /* add event instance to list of parsed events */
+                $this->cal["events"][] = $eventInstance;
+                
+                /* calculate next instance of event */
                 if (isset($rrule)) {
                     $quitLoop = false;
                     /* conditionals */
@@ -224,6 +227,9 @@ class ParsedICal extends ICal
                 } else {
                     $quitLoop = true;
                 }
+                
+                $eventInstance['dtstart'] = $dtstart;
+                $eventInstance['dtend'] = $dtend;
                 
             } while (!$quitLoop);
         }
