@@ -107,7 +107,13 @@ class ParsedICal extends ICal
                     switch ($component) {
                     
                     case "ATTACH": // #section-3.8.1.1
-                        $this->cal["events"][$evele]["attach"] = $this->extractMLMV($record);
+                    case "COMMENT": // #section-3.8.1.4
+                    case "CONTACT": // #section-3.8.4.2
+                        $tmp = array();
+                        for ($c=0; $c<count($record); $c++) {
+                            $tmp[] = $record[$c]["value"];
+                        }
+                        $this->cal["events"][$evele][strtolower($component)] = $tmp;
                         break;
 
                     case "ATTENDEE": // #section-3.8.4.1
@@ -122,11 +128,12 @@ class ParsedICal extends ICal
                         break;
                 
                     case "CATEGORIES": // #section-3.8.1.2
-                        $this->cal["events"][$evele]["categories"] = $this->extractMV($record);
-                        break;
-                
-                    case "COMMENT": // #section-3.8.1.4
-                        $this->cal["events"][$evele]["comment"] = $this->extractMLMV($record);
+                    case "RESOURCES": // #section-3.8.1.10
+                        $tmp = array();
+                        for ($c=0; $c<count($record); $c++) {
+                            $tmp = array_merge($tmp, $record[$c]["value"]);
+                        }
+                        $this->cal["events"][$evele][strtolower($component)] = $tmp;
                         break;
                     
                     case "CLASS": // #section-3.8.1.3
@@ -135,13 +142,10 @@ class ParsedICal extends ICal
                             $this->cal["events"][$evele]["class"] = $tmp;
                         }
                         break;
-                
-                    case "CONTACT": // #section-3.8.4.2
-                        $this->cal["events"][$evele]["contact"] = $this->extractMLMV($record);
-                        break;
                     
                     case "CREATED": // #section-3.8.7.1
-                        $this->cal["events"][$evele]["created"] = $this->iCalDateToUnixTimestamp($record);
+                    case "LAST-MODIFIED": // #section-3.8.7.3
+                        $this->cal["events"][$evele][strtolower($component)] = $this->iCalDateToUnixTimestamp($record);
                         break;
                     
                     case "DESCRIPTION": // #section-3.8.1.5
@@ -149,13 +153,10 @@ class ParsedICal extends ICal
                         $this->cal["events"][$evele]["description"] = explode("\\n", $description);
                         break;
                     
+                    case "DURATION": // #section-3.8.2.5
+                        $this->cal["events"][$evele]["duration"] = $record['value'];
                     case "DTEND": // #section-3.8.2.2
                         $this->cal["events"][$evele]["dtend"] = $dtend;
-                        break;
-                    
-                    case "DURATION": // #section-3.8.2.5
-                        $this->cal["events"][$evele]["dtend"] = $dtend;
-                        $this->cal["events"][$evele]["duration"] = $record['value'];
                         break;
                     
                     case "GEO": // #section-3.8.1.6
@@ -166,12 +167,10 @@ class ParsedICal extends ICal
                             );
                         break;
                     
-                    case "LAST-MODIFIED": // #section-3.8.7.3
-                        $this->cal["events"][$evele]["last-modified"] = $this->iCalDateToUnixTimestamp($record);
-                        break;
-                    
                     case "LOCATION": // #section-3.8.1.7
-                        $this->cal["events"][$evele]["location"] = $record["value"];
+                    case "SUMMARY": // #section-3.8.1.12
+                    case "URL": // #section-3.8.4.6
+                        $this->cal["events"][$evele][strtolower($component)] = $record["value"];
                         break;
                     
                     case "ORGANIZER": // #section-3.8.4.3
@@ -186,10 +185,6 @@ class ParsedICal extends ICal
                         $this->cal["events"][$evele]["priority"] = intval($record["value"]);
                         break;
                     
-                    case "RESOURCES": // #section-3.8.1.10
-                        $this->cal["events"][$evele]["resources"] = $this->extractMV($record);
-                        break;
-                    
                     case "STATUS": // #section-3.8.1.11
                         // currently checks only for VEVENT valid values
                         $tmp = strtoupper($record["value"]);
@@ -198,21 +193,13 @@ class ParsedICal extends ICal
                         }
                         break;
                     
-                    case "SUMMARY": // #section-3.8.1.12
-                        $this->cal["events"][$evele]["summary"] = $record["value"];
-                        break;
-                    
                     case "TRANS": // #section-3.8.2.7
                         $tmp = strtoupper($record["value"]);
                         if (in_array($tmp, array("OPAQUE", "TRANSPARENT"))) {
                             $this->cal["events"][$evele]["trans"] = $tmp;
                         }
                         break;
-                    
-                    case "URL": // #section-3.8.4.6
-                        $this->cal["events"][$evele]["url"] = $record;
-                        break;
-                        
+                     
                     }
                 }
                 
@@ -441,42 +428,5 @@ class ParsedICal extends ICal
         $datetime->add(new DateInterval('P'.$offset));
         return $datetime->getTimestamp();
     }
-    
-    /**
-     * Returns an array of all the values from an originally MLMV record
-     * 
-     * @param {array} $mvRecord MultiValue record
-     * 
-     * @return {array}
-     */
-    private function extractMLMV ($mvRecord) {
-		if (!isset($mvRecord[0]["value"]) || !is_string($mvRecord[0]["value"])) {
-			return array();
-		}
-		$tmp = array();
-		for ($c=0; $c<count($mvRecord); $c++) {
-			$tmp[] = $mvRecord[$c]["value"];
-		}
-		return $tmp;
-	}
-	
-	/**
-     * Returns an array of all the values from an originally MLMV and SLMV record
-     * 
-     * @param {array} $mvRecord MultiValue record
-     * 
-     * @return {array}
-     */
-	private function extractMV ($mvRecord) {
-		if (!isset($mvRecord[0]["value"]) || !is_array($mvRecord[0]["value"])) {
-			return array();
-		}
-		$tmp = array();
-		for ($c=0; $c<count($mvRecord); $c++) {
-			$tmp = array_merge($tmp, $mvRecord[$c]["value"]);
-		}
-		return $tmp;
-	}
-    
 }
 ?>
