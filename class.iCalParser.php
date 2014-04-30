@@ -65,7 +65,11 @@ class ParsedICal extends ICal
             $dtstart = $this->iCalDateToUnixTimestamp($event["DTSTART"]);
             if (isset($event["DTEND"])) {
                 $dtend = $this->iCalDateToUnixTimestamp($event["DTEND"]);
-            }
+            } else if (isset($event['DURATION'])) {
+				// we translate the duration into an explicit end datetime,
+				//   this makes calculating repeats easier later (hopefully)
+				$dtend = $this->timestamp_add($dtstart, substr($event['DURATION']['value'],1));
+			}
             
             /* determine recurrance */
             /* RRULE / EXDATE / RECURID / RDATE / SEQUENCE */
@@ -91,8 +95,7 @@ class ParsedICal extends ICal
                 /* Set optional components */
                 /*
                  * single value:
-                 * DONE: class / created / description / dtend / geo / last-mod / location / priority / status / summary / transp / url
-                 * IN-PROG: duration / organizer
+                 * DONE: class / created / description / dtend / duration / geo / last-mod / location / organizer / priority / status / summary / transp / url
                  * NOT DO: rrule / recurid / sequence (are parsed and so are not passed on)
                  * 
                  * multiple value:
@@ -100,83 +103,91 @@ class ParsedICal extends ICal
                  * TODO: rstatus / related / x-prop
                  * NOT DO: exdate / rdate / iana-prop
                  */
-                if (isset($event["ATTACH"])) {
-					// http://tools.ietf.org/html/rfc5545#section-3.8.1.1
+                if (isset($event["ATTACH"])) { // #section-3.8.1.1
 					$this->cal["events"][$evele]["attach"] = $this->extractMLMV($event["ATTACH"]);
 				}
-				if (isset($event["ATTENDEE"])) {
-					// http://tools.ietf.org/html/rfc5545#section-3.8.4.1
-					$this->cal["events"][$evele]["attendee"] = $this->extractMLMV($event["ATTENDEE"]);
+				if (isset($event["ATTENDEE"])) { // #section-3.8.4.1
+					$tmp = array();
+					for ($c=0; $c<count($event["ATTENDEE"]); $c++) {
+						$tmp[] = array_merge(
+								array("mailto" => substr($event["ATTENDEE"][$c]["value"], 7)),
+								$event["ATTENDEE"][$c]["params"]
+							);
+					}
+					$this->cal["events"][$evele]["attendee"] = $tmp;
 				}
-                if (isset($event["CATEGORIES"])) {
+                if (isset($event["CATEGORIES"])) { // #section-3.8.1.2
 					$this->cal["events"][$evele]["categories"] = $this->extractMV($event["CATEGORIES"]);
 				}
-				if (isset($event["COMMENT"])) {
-					// http://tools.ietf.org/html/rfc5545
+				if (isset($event["COMMENT"])) { // #section-3.8.1.4
 					$this->cal["events"][$evele]["comment"] = $this->extractMLMV($event["COMMENT"]);
 				}
-                if (isset($event["CLASS"])) {
+                if (isset($event["CLASS"])) { // #section-3.8.1.3
 					$tmp = strtoupper($event["CLASS"]["value"]);
 					if (in_array($tmp, array("PUBLIC", "PRIVATE", "CONFIDENTIAL")) || substr($tmp, 0, 2) == "X-") {
 						$this->cal["events"][$evele]["class"] = $tmp;
 					}
 				}
-				if (isset($event["CONTACT"])) {
-					// http://tools.ietf.org/html/rfc5545#section-3.8.4.2
+				if (isset($event["CONTACT"])) { // #section-3.8.4.2
 					$this->cal["events"][$evele]["contact"] = $this->extractMLMV($event["CONTACT"]);
 				}
-                if (isset($event["CREATED"])) {
+                if (isset($event["CREATED"])) { // #section-3.8.7.1
                     $this->cal["events"][$evele]["created"] = $this->iCalDateToUnixTimestamp($event["CREATED"]);
                 }
-                if (isset($event["DESCRIPTION"])) {
+                if (isset($event["DESCRIPTION"])) { // #section-3.8.1.5
                     $description = str_replace("\\,", ",", $event["DESCRIPTION"]["value"]);
                     $this->cal["events"][$evele]["description"] = explode("\\n", $description);
                 }
-                if (isset($event["DTEND"])) {
+                if (isset($event["DTEND"])) { // #section-3.8.2.2
                     $this->cal["events"][$evele]["dtend"] = $dtend;
                 }
-                if (isset($event["DURATION"])) {
-					// http://tools.ietf.org/html/rfc5545
+                if (isset($event["DURATION"])) { // #section-3.8.2.5
+					$this->cal["events"][$evele]["dtend"] = $dtend;
+					$this->cal["events"][$evele]["duration"] = $event['DURATION']['value'];
 				}
-                if (isset($event["GEO"])) {
+                if (isset($event["GEO"])) { // #section-3.8.1.6
 					$tmp = explode(";", $event["GEO"]["value"]);
 					$this->cal["events"][$evele]["geo"] = array(
 							"lat" => floatval($tmp[0]),
 							"lon" => floatval($tmp[1])
 						);
 				}
-                if (isset($event["LAST-MODIFIED"])) {
+                if (isset($event["LAST-MODIFIED"])) { // #section-3.8.7.3
                     $this->cal["events"][$evele]["last-modified"] = $this->iCalDateToUnixTimestamp($event["LAST-MODIFIED"]);
                 }
-                if (isset($event["LOCATION"])) {
+                if (isset($event["LOCATION"])) { // #section-3.8.1.7
                     $this->cal["events"][$evele]["location"] = $event["LOCATION"]["value"];
                 }
-                if (isset($event["ORGANIZER"])) {
-					// http://tools.ietf.org/html/rfc5545#section-3.8.4.3
+                if (isset($event["ORGANIZER"])) { // #section-3.8.4.3
+					$tmp = array("mailto" => substr($event["ORGANIZER"]["value"], 7));
+					if (isset($event["ORGANIZER"]["params"])) {
+						$tmp = array_merge($tmp, $event["ORGANIZER"]["params"]);
+					}
+					$this->cal["events"][$evele]["organizer"] = $tmp;
 				}
-				if (isset($event["PRIORITY"])) {
+				if (isset($event["PRIORITY"])) { // #section-3.8.1.9
                     $this->cal["events"][$evele]["priority"] = intval($event["PRIORITY"]["value"]);
                 }
-                if (isset($event["RESOURCES"])) {
+                if (isset($event["RESOURCES"])) { // #section-3.8.1.10
 					$this->cal["events"][$evele]["resources"] = $this->extractMV($event["RESOURCES"]);
 				}
-                if (isset($event["STATUS"])) {
+                if (isset($event["STATUS"])) { // #section-3.8.1.11
 					// currently checks only for VEVENT valid values
 					$tmp = strtoupper($event["STATUS"]["value"]);
 					if (in_array($tmp, array("TENTATIVE", "CONFIRMED", "CANCELLED"))) {
 						$this->cal["events"][$evele]["status"] = $tmp;
 					}
                 }
-                if (isset($event["SUMMARY"])) {
+                if (isset($event["SUMMARY"])) { // #section-3.8.1.12
                     $this->cal["events"][$evele]["summary"] = $event["SUMMARY"]["value"];
                 }
-                if (isset($event["TRANS"])) {
+                if (isset($event["TRANS"])) { // #section-3.8.2.7
 					$tmp = strtoupper($event["TRANS"]["value"]);
 					if (in_array($tmp, array("OPAQUE", "TRANSPARENT"))) {
 						$this->cal["events"][$evele]["trans"] = $tmp;
 					}
                 }
-                if (isset($event["URL"])) {
+                if (isset($event["URL"])) { // #section-3.8.4.6
                     $this->cal["events"][$evele]["url"] = $event["URL"]["value"];
                 }
                 
