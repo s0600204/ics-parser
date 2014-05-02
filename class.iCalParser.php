@@ -291,30 +291,31 @@ class ParsedICal extends ICal
         $offset = "";
         
         // todo: the other rrule changes (interval, byseclist, ...)
+        $interval = isset($rrule["INTERVAL"]) ? intval($rrule["INTERVAL"]) : 1;
         
         if (isset($rrule["FREQ"])) {
             switch ($rrule["FREQ"]) {
             case "YEARLY":
-                $offset = "1Y";
+                $offset = $interval."Y";
                 break;
             case "MONTHLY":
-                $offset = "1M";
+                $offset = $interval."M";
                 break;
             case "WEEKLY":
-                $offset = "1W";
+                $offset = $interval."W";
                 break;
             case "DAILY":
-                $offset = "1D";
+                $offset = $interval."D";
                 break;
             case "HOURLY":
-                $offset = "T1H";
+                $offset = "T".$interval."H";
                 break;
             case "MINUTELY":
-                $offset = "T1M";
+                $offset = "T".$interval."M";
                 break;
             case "SECONDLY":
             default:
-                $offset = "T1S";
+                $offset = "T".$interval."S";
                 break;
             }
         }
