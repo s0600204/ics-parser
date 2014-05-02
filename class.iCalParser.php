@@ -229,8 +229,51 @@ class ParsedICal extends ICal
                 if (isset($rrule)) {
                     
                     /* effects */
-                    $dtstart = $this->timestamp_add($dtstart, $offset);
-                    $dtend = $this->timestamp_add($dtend, $offset);
+                    do {
+                        $dtstart = $this->timestamp_add($dtstart, $offset);
+                        $dtend = $this->timestamp_add($dtend, $offset);
+                        
+                        $offsetLoop = false;
+                        foreach ($rrule as $rule => $csv) {
+                            switch ($rule) {
+                                case "BYSECOND":   // 0-60
+                                    // extract 'seconds' from new dtstart and compare to list of permitted values
+                                    $offsetLoop = (in_array(date("s", $dtstart), $csv)) ? $offsetLoop : true;
+                                    break;
+                                case "BYMINUTE":   // 0-59
+                                    $offsetLoop = (in_array(date("i", $dtstart), $csv)) ? $offsetLoop : true;
+                                    break;
+                                case "BYHOUR":     // 0-23
+                                    $offsetLoop = (in_array(date("H", $dtstart), $csv)) ? $offsetLoop : true;
+                                    break;
+                                case "BYDAY":      // [[+|-] 1-53] "SU"|"MO"|"TU"|"WE"|"TH"|"FR"|"SA"
+                                /*  This option... is very complicated to parse */
+                                    break;
+                                case "BYMONTHDAY": // [+|-] 1-31
+                                    for ($c=0; $c<count($csv); $c++) {
+                                        if ($csv[$c] < 0) {
+                                            $csv[$c] = date("t", $dtstart) + $csv[$c];
+                                        }
+                                    }
+                                    $offsetLoop = (in_array(date("d", $dtstart), $csv)) ? $offsetLoop : true;
+                                    break;
+                                case "BYYEARDAY":  // [+|-] 1-366
+                                    for ($c=0; $c<count($csv); $c++) {
+                                        if ($csv[$c] < 0) {
+                                            $csv[$c] = (date("L", $dtstart)) ? 366 + $csv[$c] : 365 + $csv[$c];
+                                        }
+                                    }
+                                    $offsetLoop = (in_array(date("z", $dtstart)+1, $csv2)) ? $offsetLoop : true;
+                                    break;
+                                case "BYWEEKNO":   // [+|-] 1-53
+                                    $offsetLoop = (in_array(date("W", $dtstart), $csv)) ? $offsetLoop : true;
+                                    break;
+                                case "BYMONTH":    // 1-12
+                                    $offsetLoop = (in_array(date("n", $dtstart), $csv)) ? $offsetLoop : true;
+                                    break;
+                            }
+                        }
+                    } while ($offsetLoop);
                     
                     /* conditionals */
                     if (isset($rrule["COUNT"])) {
