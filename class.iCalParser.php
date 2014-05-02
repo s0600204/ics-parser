@@ -78,6 +78,11 @@ class ParsedICal extends ICal
                 $rule = explode(";", $event["RRULE"]["value"]);
                 foreach ($rule as $r) {
                     list($k, $v) = explode("=", $r);
+                    switch ($k) {
+                        case "UNTIL":
+                            $v = $this->iCalDateToUnixTimestamp($v);
+                            break;
+				    }
                     $rrule[$k] = $v;
                 }
             }
@@ -205,27 +210,38 @@ class ParsedICal extends ICal
                 /* add event instance to list of parsed events */
                 $this->cal["events"][] = $eventInstance;
                 
+                $quitLoop = true;
                 /* calculate next instance of event */
                 if (isset($rrule)) {
-                    $quitLoop = false;
-                    /* conditionals */
-                    if (isset($rrule["COUNT"])) {
-                        if ($rrule["COUNT"] == 1) {
-                            $quitLoop = true;
-                        } else {
-                            $rrule["COUNT"]--;
-                        }
-                    }
-                    if (isset($rrule["UNTIL"])) {
-                        // todo: relevant code
-                    }
                     
                     /* effects */
                     $offset = $this->rrule_offset($rrule);
                     $dtstart = $this->timestamp_add($dtstart, $offset);
                     $dtend = $this->timestamp_add($dtend, $offset);
-                } else {
-                    $quitLoop = true;
+                    
+                    /* conditionals */
+                    if (isset($rrule["COUNT"])) {
+                        if ($rrule["COUNT"] > 1) {
+                            $rrule["COUNT"]--;
+                            $quitLoop = false;
+                        }
+                    } else if (isset($rrule["UNTIL"])) {
+                        if ($rrule["UNTIL"] >= $dtstart) {
+                            $quitLoop = false;
+                        }
+                    } else {
+                        /* If no COUNT or UNTIL, events repeat for ever. Obviously
+                         *   this would cause an infinite loop, so we shall put
+                         *   in an arbitrary limit.
+                         * 
+                         * The following value is temporary and for development
+                         *   purposes. It will/should be changed later (TODO)
+                         */
+                        if ($dtstart < mktime(0,0,0,5,1,2015)) {
+                            $quitLoop = false;
+                        }
+                    }
+                    
                 }
                 
                 $eventInstance['dtstart'] = $dtstart;
