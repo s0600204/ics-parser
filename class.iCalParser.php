@@ -82,7 +82,18 @@ class ParsedICal extends ICal
                         case "UNTIL":
                             $v = $this->iCalDateToUnixTimestamp($v);
                             break;
-				    }
+                        case "BYWEEKNO":   // [+|-] 1-53
+                        case "BYYEARDAY":  // [+|-] 1-366
+                        case "BYMONTHDAY": // [+|-] 1-31
+                        case "BYSECOND":   // 0-60
+                        case "BYMINUTE":   // 0-59
+                        case "BYHOUR":     // 0-23
+                        case "BYDAY":      // [[+|-] 1-53] "SU"|"MO"|"TU"|"WE"|"TH"|"FR"|"SA"
+                        case "BYMONTH":    // 1-12
+                        case "SETPOS":     // [+|-] 1-366
+                            $v = explode(",", $v);
+                            break;
+                    }
                     $rrule[$k] = $v;
                 }
             }
@@ -205,6 +216,9 @@ class ParsedICal extends ICal
                 }
             }
             
+            if (isset($rrule)) {
+                $offset = $this->rrule_offset($rrule);
+            }
             
             do {
                 /* add event instance to list of parsed events */
@@ -215,7 +229,6 @@ class ParsedICal extends ICal
                 if (isset($rrule)) {
                     
                     /* effects */
-                    $offset = $this->rrule_offset($rrule);
                     $dtstart = $this->timestamp_add($dtstart, $offset);
                     $dtend = $this->timestamp_add($dtend, $offset);
                     
