@@ -63,16 +63,18 @@
 ------------------------------------------------------------------------
   Migration
 ------------------------------------------------------------------------
-  If you are migrating from Martin Thoma's original, then you may need
+  If you are migrating from Martin Thoma's original, then you will need
     to alter your code where you access a value from either the
     $ical->events() or $ical->todos() functions to take into account
-    changes to permit the saving of params from a KEY;PARAMS:VALUE
-    scenario.
+    changes to permit the saving of params and multiple values.
     
     // Before:
     foreach ($events as $event) {
 		echo $event['DTSTART'];			  // value
 										  // params lost during parsing
+		echo $event['ATTENDEE'];		  // only the last attendee in
+										      the ics file is remembered
+		echo $event['EXDATE'];			  // all values in one line
 	}
     
     // After:
@@ -82,10 +84,18 @@
 		echo $event['DTSTART']['params']; // params in an assoc. array
 											        if params originally
 											            present in *.ics
+											            
+		echo $event['ATTENDEE'][0]['value'] // The first attendee
+		echo $event['ATTENDEE'][1]['value'] // The second attendee
+		echo $event['ATTENDEE'][n]['value'] // The (n+1)th attendee
+		
+		echo $event['EXDATE']['value'][0]  // first exdate
+		echo $event['EXDATE']['value'][1]  // second exdate
+		echo $event['EXDATE']['value'][n]  // (n+1)th exdate
 		
 		// examples
 		echo $event['DTSTART']['params']['TZID'];
-		echo $event['ATTENDEE']['params']['ROLE'];
+		echo $event['ATTENDEE'][0]['params']['ROLE'];
 	}
 
 ------------------------------------------------------------------------
