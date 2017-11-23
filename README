@@ -18,6 +18,10 @@
     However, I needed to alter the code and so, in the atmosphere of
     open source, I make my modifications available to all.
 
+  A couple of years later I found a much better fork of the original
+    codebase (u01jmg3/ics-parser) and have been using that ever since.
+    As such, this repo is no longer maintained.
+
   Please also read through the original readme, available within this
     repo as README-ORIG
 
